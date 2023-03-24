@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -29,15 +30,21 @@ func getClient(config *oauth2.Config) *http.Client {
 	return config.Client(context.Background(), tok)
 }
 
+const (
+	localAdd           = ":8989"
+	redirectUriPattern = "/redirect"
+	queryParamName     = "code"
+)
+
 // Request a token from the web, then returns the retrieved token.
 func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 	fmt.Printf("Go to the following link in your browser then type the "+
 		"authorization code: \n%v\n", authURL)
 
-	var authCode string
-	if _, err := fmt.Scan(&authCode); err != nil {
-		log.Fatalf("Unable to read authorization code: %v", err)
+	authCode, err := getAuthCodeQueryParam(localAdd, redirectUriPattern, queryParamName)
+	if err != nil {
+		log.Fatalf("Unable to get auth code: %v", err)
 	}
 
 	tok, err := config.Exchange(context.TODO(), authCode)
@@ -45,6 +52,26 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 		log.Fatalf("Unable to retrieve token from web: %v", err)
 	}
 	return tok
+}
+
+func getAuthCodeQueryParam(localAdd string, uriPattern string, paramName string) (string, error) {
+	var authCode string
+	quit := make(chan string)
+	http.HandleFunc(localAdd, func(w http.ResponseWriter, r *http.Request) {
+		queryVals := r.URL.Query()
+		quit <- queryVals.Get(paramName)
+	})
+	go func() {
+		err := http.ListenAndServe(uriPattern, nil)
+		if err != nil {
+			log.Fatalf("Unable to set up local server: %v", err)
+		}
+	}()
+	authCode = <-quit
+	if authCode == "" {
+		return "", errors.New("Unable to get auth code")
+	}
+	return authCode, nil
 }
 
 // Retrieves a token from a local file.
