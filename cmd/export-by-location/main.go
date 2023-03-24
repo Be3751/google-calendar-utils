@@ -56,22 +56,29 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 
 func getAuthCodeQueryParam(localAdd string, uriPattern string, paramName string) (string, error) {
 	var authCode string
-	quit := make(chan string)
-	http.HandleFunc(localAdd, func(w http.ResponseWriter, r *http.Request) {
+
+	codeChan := make(chan string)
+	errChan := make(chan error)
+	http.HandleFunc(uriPattern, func(w http.ResponseWriter, r *http.Request) {
 		queryVals := r.URL.Query()
-		quit <- queryVals.Get(paramName)
+		codeChan <- queryVals.Get(paramName)
 	})
 	go func() {
-		err := http.ListenAndServe(uriPattern, nil)
+		err := http.ListenAndServe(localAdd, nil)
 		if err != nil {
-			log.Fatalf("Unable to set up local server: %v", err)
+			errChan <- fmt.Errorf("Unable to launch local server: %w", err)
 		}
 	}()
-	authCode = <-quit
-	if authCode == "" {
-		return "", errors.New("Unable to get auth code")
+
+	select {
+	case authCode = <-codeChan:
+		if authCode == "" {
+			return "", errors.New("Unable to get auth code")
+		}
+		return authCode, nil
+	case err := <-errChan:
+		return "", err
 	}
-	return authCode, nil
 }
 
 // Retrieves a token from a local file.
