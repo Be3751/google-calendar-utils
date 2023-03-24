@@ -123,9 +123,21 @@ func main() {
 		log.Fatalf("Unable to retrieve Calendar client: %v", err)
 	}
 
-	t := time.Now().Format(time.RFC3339)
-	events, err := srv.Events.List("primary").ShowDeleted(false).
-		SingleEvents(true).TimeMin(t).MaxResults(10).OrderBy("startTime").Do()
+	calendarList, err := srv.CalendarList.List().Do()
+	if err != nil {
+		log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
+	}
+	var targetId string
+	for _, cal := range calendarList.Items {
+		if cal.Summary == "KC111" {
+			targetId = cal.Id
+		}
+	}
+	fmt.Printf("KC111 calendarId: %s", targetId)
+
+	t := time.Date(2022, time.April, 1, 0, 0, 0, 0, time.FixedZone("JST", 0)).Format(time.RFC3339)
+	events, err := srv.Events.List(targetId).ShowDeleted(false).
+		SingleEvents(true).TimeMin(t).MaxResults(1000).OrderBy("startTime").Q("KC111").Do()
 	if err != nil {
 		log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
 	}
