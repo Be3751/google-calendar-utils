@@ -1,2 +1,2 @@
 # google-calendar-utils
-Utilities to extend the functionality of Google Calendar
+CLI apps to extend the functionality of Google Calendar
