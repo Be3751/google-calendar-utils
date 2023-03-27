@@ -1,11 +1,13 @@
 package main
 
 import (
-	"fmt"
+	"encoding/csv"
 	"log"
+	"os"
 	"time"
 
 	"google-calendar-utils/internal/agent"
+	myCSV "google-calendar-utils/internal/csv"
 	"google-calendar-utils/pkg/calendar"
 )
 
@@ -29,16 +31,15 @@ func main() {
 		log.Fatalf("Unable to find events by %s %v", calendarName, err)
 	}
 
-	fmt.Println("Upcoming events:")
-	if len(events.Items) == 0 {
-		fmt.Println("No upcoming events found.")
-	} else {
-		for _, item := range events.Items {
-			date := item.Start.DateTime
-			if date == "" {
-				date = item.Start.Date
-			}
-			fmt.Printf("%v (%v)\n", item.Summary, date)
-		}
+	f, err := os.Create("out/sample.csv")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	writer := csv.NewWriter(f)
+	csv := myCSV.NewCSV(writer)
+	if err := csv.WriteFromEvents(events); err != nil {
+		panic(err)
 	}
 }
