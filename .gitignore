@@ -16,3 +16,6 @@
 
 secrets/*
 !secrets/.gitkeep
+
+out/
+!out/.gitkeep
