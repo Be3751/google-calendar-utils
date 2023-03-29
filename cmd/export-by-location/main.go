@@ -39,7 +39,7 @@ func main() {
 
 	writer := csv.NewWriter(f)
 	csv := myCSV.NewCSV(writer)
-	if err := csv.Write(events); err != nil {
+	if err := csv.WriteFromEvents(events); err != nil {
 		panic(err)
 	}
 }

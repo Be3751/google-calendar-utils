@@ -8,7 +8,7 @@ import (
 )
 
 type CSV interface {
-	Write(evnets *calendar.Events) error
+	WriteFromEvents(evnets *calendar.Events) error
 }
 
 type csv struct {
@@ -21,10 +21,10 @@ func NewCSV(w *myCSV.Writer) CSV {
 	}
 }
 
-func (c *csv) Write(events *calendar.Events) error {
+func (c *csv) WriteFromEvents(events *calendar.Events) error {
 	defer c.writer.Flush()
 
-	header := []string{"title", "datetime", "attendees"}
+	header := []string{"title", "datetime", "creator"}
 	if err := c.writer.Write(header); err != nil {
 		return fmt.Errorf("faild to write record %v: %w", header, err)
 	}
@@ -32,8 +32,9 @@ func (c *csv) Write(events *calendar.Events) error {
 	for _, e := range events.Items {
 		title := e.Summary
 		date := e.Start.DateTime
-		var attendees string
-		record := []string{title, date, attendees}
+		creator := remEMailDomain(e.Creator.Email)
+
+		record := []string{title, date, creator}
 		if err := c.writer.Write(record); err != nil {
 			return fmt.Errorf("faild to write record %v: %w", record, err)
 		}
@@ -44,23 +45,11 @@ func (c *csv) Write(events *calendar.Events) error {
 	return nil
 }
 
-func commaSeparatedStr(attendees []*calendar.EventAttendee) string {
-	result := ""
-	for idx, elem := range attendees {
-		fmt.Println(elem)
-		if idx == 0 {
-			if elem.DisplayName == "" {
-				result = fmt.Sprint(elem.Email)
-			} else {
-				result = fmt.Sprint(elem.DisplayName)
-			}
-		} else {
-			if elem.DisplayName == "" {
-				result = result + fmt.Sprintf(", %v", elem.Email)
-			} else {
-				result = result + fmt.Sprintf(", %v", elem.DisplayName)
-			}
+func remEMailDomain(email string) string {
+	for i, s := range email {
+		if s == '@' {
+			return email[:i]
 		}
 	}
-	return result
+	return ""
 }
