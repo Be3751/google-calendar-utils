@@ -3,6 +3,7 @@ package csv
 import (
 	myCSV "encoding/csv"
 	"fmt"
+	"time"
 
 	"google.golang.org/api/calendar/v3"
 )
@@ -24,17 +25,30 @@ func NewCSV(w *myCSV.Writer) CSV {
 func (c *csv) WriteFromEvents(events *calendar.Events) error {
 	defer c.writer.Flush()
 
-	header := []string{"title", "datetime", "creator"}
+	header := []string{"title", "datetime-start", "datetime-end", "creator"}
 	if err := c.writer.Write(header); err != nil {
 		return fmt.Errorf("faild to write record %v: %w", header, err)
 	}
 
 	for _, e := range events.Items {
 		title := e.Summary
-		date := e.Start.DateTime
+		if title == "" {
+			title = "private"
+		}
+		sDateTime := e.Start.DateTime
+		convSDateTime, err := convToFormat(sDateTime)
+		if err != nil {
+			return fmt.Errorf("Unable to conv: %w", err)
+		}
+		eDateTime := e.End.DateTime
+		convEDateTime, err := convToFormat(eDateTime)
+		if err != nil {
+			return fmt.Errorf("Unable to conv: %w", err)
+		}
+
 		creator := remEMailDomain(e.Creator.Email)
 
-		record := []string{title, date, creator}
+		record := []string{title, convSDateTime, convEDateTime, creator}
 		if err := c.writer.Write(record); err != nil {
 			return fmt.Errorf("faild to write record %v: %w", record, err)
 		}
@@ -52,4 +66,12 @@ func remEMailDomain(email string) string {
 		}
 	}
 	return ""
+}
+
+func convToFormat(rfc3339Str string) (string, error) {
+	t, err := time.Parse(time.RFC3339, rfc3339Str)
+	if err != nil {
+		return "", fmt.Errorf("Unable to parse: %w", err)
+	}
+	return t.Format("2006/01/02, 15:04"), nil
 }

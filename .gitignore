@@ -19,3 +19,5 @@ secrets/*
 
 out/
 !out/.gitkeep
+
+.DS_Store
